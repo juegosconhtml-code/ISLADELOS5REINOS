@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reino Monera - Invasión Bacteriana</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #030712;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: calc(100vw * (20 / 9));
+            max-height: 100vh;
+            max-width: calc(100vh * (9 / 20));
+            background-color: #061e30;
+            overflow: hidden;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-navbar {
+            height: 54px;
+            background-color: #031422;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border-bottom: 2px solid rgba(239, 83, 80, 0.3);
+            gap: 6px;
+            z-index: 10;
+        }
+
+        .back-btn {
+            background: #0f2942;
+            border: 1px solid #0288d1;
+            color: #ffffff;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .back-btn:active { background: #1a3f63; }
+
+        .game-title-text {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #ef5350;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .score-display {
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: #000000;
+            padding: 4px 8px;
+            border-radius: 12px;
+            border: 1px solid #0369a1;
+            color: #ffd700;
+            white-space: nowrap;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100% - 54px);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 18, 30, 0.94);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 22px;
+            text-align: center;
+            z-index: 30;
+        }
+
+        .game-overlay.hidden { display: none; }
+
+        .overlay-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: #ff5252;
+            text-shadow: 0 0 10px rgba(255, 82, 82, 0.5);
+        }
+
+        .overlay-desc {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-bottom: 22px;
+            line-height: 1.5;
+            max-width: 320px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 80%;
+            max-width: 220px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #ff5252, #c62828);
+            border: none;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(239, 83, 80, 0.4);
+        }
+
+        .secondary-btn {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .action-btn:active, .secondary-btn:active { transform: scale(0.96); }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <div class="game-navbar">
+            <a href="index.html" class="back-btn">◀ Isla</a>
+            <div class="game-title-text">REINO MONERA</div>
+            <div class="score-display">Pts: <span id="score-val">0</span></div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+
+            <div id="overlay" class="game-overlay">
+                <div class="overlay-title">Invasión Bacteriana</div>
+                <div class="overlay-desc">
+                    Mueve al <b>Glóbulo Blanco</b> deslizando el dedo o con el cursor.<br><br>
+                    Protege el 🧬 <b>tejido celular</b> vivo justo debajo de ti.<br>
+                    ¡Atento! Si las bacterias impactan el tejido, 💥 <b>destruirán las células de esa zona</b> dejando un orificio permanente.<br><br>
+                    Si <b>3 bacterias</b> causan infecciones, perderás.
+                </div>
+                <div class="btn-group">
+                    <button class="action-btn" id="start-btn" onclick="startGame()">¡JUGAR!</button>
+                    <a href="index.html" class="secondary-btn" id="menu-btn" style="display:none;">Volver a la Isla</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scoreVal = document.getElementById('score-val');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.querySelector('.overlay-title');
+        const overlayDesc = document.querySelector('.overlay-desc');
+        const menuBtn = document.getElementById('menu-btn');
+        const startBtn = document.getElementById('start-btn');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let score = 0;
+        let livesLost = 0;
+        let isGameRunning = false;
+        let animationFrameId = null;
+
+        // Efectos de sonido con Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // Ajuste adaptable del Canvas
+        let displayWidth = 0;
+        let displayHeight = 0;
+
+        function resizeCanvas() {
+            const wrapper = canvas.parentElement;
+            displayWidth = wrapper.clientWidth;
+            displayHeight = wrapper.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+
+            buildTissueGrid();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        let touchX = 0;
+        let touchY = 0;
+
+        function updatePointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            touchX = clientX - rect.left;
+            touchY = clientY - rect.top;
+        }
+
+        canvas.addEventListener('touchstart', (e) => { updatePointerPos(e); }, { passive: true });
+        canvas.addEventListener('touchmove', (e) => { updatePointerPos(e); }, { passive: true });
+        canvas.addEventListener('mousemove', (e) => { updatePointerPos(e); });
+
+        // LÓGICA DEL REINO MONERA
+        let tissueGrid = [];
+        const bodyCellRadius = 15;
+        let tissueTopY = 0;
+
+        function buildTissueGrid() {
+            tissueGrid = [];
+            const rowHeight = bodyCellRadius * 1.55;
+            const colWidth = bodyCellRadius * 1.85;
+            let rowIndex = 0;
+
+            const whiteCellY = displayHeight * 0.70;
+            tissueTopY = whiteCellY + 30 + bodyCellRadius + 10;
+
+            for (let cy = tissueTopY; cy <= displayHeight + bodyCellRadius * 2; cy += rowHeight) {
+                const xOffset = (rowIndex % 2 === 1) ? colWidth / 2 : 0;
+                for (let cx = -bodyCellRadius; cx <= displayWidth + colWidth; cx += colWidth) {
+                    tissueGrid.push({
+                        x: cx + xOffset,
+                        y: cy,
+                        alive: true
+                    });
+                }
+                rowIndex++;
+            }
+        }
+
+        function startGame() {
+            overlay.classList.add('hidden');
+            score = 0;
+            livesLost = 0;
+            scoreVal.textContent = '0';
+            isGameRunning = true;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            
+            initMoneraGame();
+        }
+
+        function gameOver(customTitle, customDesc) {
+            isGameRunning = false;
+            playBeep(120, 'sawtooth', 0.4);
+            overlayTitle.textContent = customTitle || "¡GAME OVER!";
+            overlayDesc.innerHTML = `${customDesc}<br><br>Puntuación Final: <b style="font-size:1.3rem; color:#ffd700;">${score} pts</b>`;
+            startBtn.textContent = "Reintentar";
+            menuBtn.style.display = "inline-block";
+            overlay.classList.remove('hidden');
+        }
+
+        function initMoneraGame() {
+            let whiteCell = {
+                x: displayWidth / 2,
+                y: displayHeight * 0.70,
+                radius: 30,
+                targetX: displayWidth / 2,
+                animTimer: 0
+            };
+
+            touchX = displayWidth / 2;
+            buildTissueGrid();
+
+            let bacteriaList = [];
+            let particles = [];
+            let spawnTimer = 0;
+            let startTime = Date.now();
+
+            function gameLoop() {
+                if (!isGameRunning) return;
+                ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+                let elapsedTime = (Date.now() - startTime) / 1000;
+                let isZigzagActive = elapsedTime >= 30;
+
+                ctx.fillStyle = '#0f0614';
+                ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+                ctx.fillStyle = '#1c081e';
+                ctx.fillRect(0, tissueTopY - bodyCellRadius, displayWidth, displayHeight - (tissueTopY - bodyCellRadius));
+
+                ctx.fillStyle = 'rgba(219, 39, 119, 0.12)';
+                ctx.fillRect(0, tissueTopY - bodyCellRadius, displayWidth, displayHeight - (tissueTopY - bodyCellRadius));
+
+                ctx.strokeStyle = '#f472b6';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                ctx.moveTo(0, tissueTopY - bodyCellRadius);
+                ctx.lineTo(displayWidth, tissueTopY - bodyCellRadius);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                for (let i = 0; i < tissueGrid.length; i++) {
+                    const cell = tissueGrid[i];
+                    if (!cell.alive) continue;
+
+                    ctx.save();
+                    ctx.translate(cell.x, cell.y);
+
+                    ctx.fillStyle = '#f472b6';
+                    ctx.strokeStyle = '#db2777';
+                    ctx.lineWidth = 1.8;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, bodyCellRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#581c87';
+                    ctx.beginPath();
+                    ctx.arc(-2, -2, bodyCellRadius * 0.38, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(-4, -4, bodyCellRadius * 0.18, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillStyle = i < (3 - livesLost) ? '#ff5252' : '#334155';
+                    ctx.beginPath();
+                    ctx.arc(20 + i * 22, 22, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (isZigzagActive) {
+                    ctx.fillStyle = '#ff5252';
+                    ctx.font = 'bold 11px system-ui';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('⚡ ZIGZAG IMPREDECIBLE', displayWidth - 12, 26);
+                }
+
+                whiteCell.y = displayHeight * 0.70;
+                whiteCell.targetX = Math.max(whiteCell.radius, Math.min(displayWidth - whiteCell.radius, touchX));
+                whiteCell.x += (whiteCell.targetX - whiteCell.x) * 0.25;
+                whiteCell.animTimer += 0.08;
+
+                ctx.save();
+                ctx.translate(whiteCell.x, whiteCell.y);
+
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = '#ffffff';
+
+                ctx.beginPath();
+                const numPoints = 10;
+                for (let i = 0; i < numPoints; i++) {
+                    const angle = (i / numPoints) * Math.PI * 2;
+                    const deform = Math.sin(whiteCell.animTimer + i * 1.5) * 4;
+                    const r = whiteCell.radius + deform;
+                    const px = Math.cos(angle) * r;
+                    const py = Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = '#f0f9ff';
+                ctx.fill();
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(-10, -6, 5, 0, Math.PI * 2);
+                ctx.arc(10, -6, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-11, -8, 2, 0, Math.PI * 2);
+                ctx.arc(9, -8, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 4, 10, 0.1 * Math.PI, 0.9 * Math.PI, false);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#0f172a';
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(244, 114, 182, 0.6)';
+                ctx.beginPath();
+                ctx.arc(-16, 2, 4, 0, Math.PI * 2);
+                ctx.arc(16, 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                spawnTimer++;
+                if (spawnTimer % 42 === 0) {
+                    let types = ['coco', 'bacilo', 'vibrio'];
+                    let chosenType = types[Math.floor(Math.random() * types.length)];
+                    let baseX = Math.random() * (displayWidth - 80) + 40;
+
+                    let isWideSweep = Math.random() < 0.45;
+                    let amp = isWideSweep 
+                        ? (displayWidth * 0.38 + Math.random() * (displayWidth * 0.1)) 
+                        : (20 + Math.random() * 45);
+
+                    bacteriaList.push({
+                        type: chosenType,
+                        baseX: baseX,
+                        x: baseX,
+                        y: -35,
+                        radius: chosenType === 'bacilo' ? 18 : (chosenType === 'vibrio' ? 20 : 22),
+                        speed: 1.8 + Math.random() * 1.3 + (score / 160),
+                        anim: Math.random() * 10,
+                        zigzagFreq: 0.02 + Math.random() * 0.035,
+                        zigzagAmp: amp,
+                        zigzagPhase: Math.random() * Math.PI * 2,
+                        wobbleOffset: Math.random() * 100
+                    });
+                }
+
+                for (let i = bacteriaList.length - 1; i >= 0; i--) {
+                    let b = bacteriaList[i];
+                    b.y += b.speed;
+                    b.anim += 0.1;
+
+                    if (isZigzagActive && b.y < displayHeight * 0.5) {
+                        let wave = Math.sin(b.y * b.zigzagFreq + b.zigzagPhase) + Math.cos(b.y * 0.015 + b.wobbleOffset) * 0.25;
+                        b.x = b.baseX + wave * b.zigzagAmp;
+                        b.x = Math.max(b.radius + 10, Math.min(displayWidth - b.radius - 10, b.x));
+                    }
+
+                    ctx.save();
+                    ctx.translate(b.x, b.y);
+
+                    let primaryColor = '#ef4444';
+
+                    if (b.type === 'coco') {
+                        primaryColor = '#4ade80';
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = '#22c55e';
+
+                        ctx.beginPath();
+                        ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = '#15803d';
+                        ctx.fill();
+                        ctx.strokeStyle = '#4ade80';
+                        ctx.lineWidth = 2.5;
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#86efac';
+                        ctx.lineWidth = 1.5;
+                        for (let c = 0; c < 8; c++) {
+                            let angle = (c / 8) * Math.PI * 2 + Math.sin(b.anim) * 0.2;
+                            ctx.beginPath();
+                            ctx.moveTo(Math.cos(angle) * b.radius, Math.sin(angle) * b.radius);
+                            ctx.lineTo(Math.cos(angle) * (b.radius + 6), Math.sin(angle) * (b.radius + 6));
+                            ctx.stroke();
+                        }
+                    } else if (b.type === 'bacilo') {
+                        primaryColor = '#ef4444';
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = '#ef4444';
+
+                        let w = 24, h = 46;
+                        ctx.beginPath();
+                        if (ctx.roundRect) {
+                            ctx.roundRect(-w/2, -h/2, w, h, w/2);
+                        } else {
+                            ctx.rect(-w/2, -h/2, w, h);
+                        }
+                        ctx.fillStyle = '#b91c1c';
+                        ctx.fill();
+                        ctx.strokeStyle = '#f87171';
+                        ctx.lineWidth = 2.5;
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#fca5a5';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-4, -h/2);
+                        ctx.quadraticCurveTo(-10, -h/2 - 12, -6 + Math.sin(b.anim)*4, -h/2 - 18);
+                        ctx.moveTo(4, -h/2);
+                        ctx.quadraticCurveTo(10, -h/2 - 12, 6 - Math.sin(b.anim)*4, -h/2 - 18);
+                        ctx.stroke();
+                    } else if (b.type === 'vibrio') {
+                        primaryColor = '#fde047';
+                        ctx.shadowBlur = 12;
+                        ctx.shadowColor = '#eab308';
+
+                        ctx.beginPath();
+                        ctx.moveTo(-10, -18);
+                        ctx.bezierCurveTo(16, -15, 18, 12, -8, 20);
+                        ctx.bezierCurveTo(-2, 10, -2, -10, -10, -18);
+                        ctx.fillStyle = '#ca8a04';
+                        ctx.fill();
+                        ctx.strokeStyle = '#fde047';
+                        ctx.lineWidth = 2.5;
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#fef08a';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-8, 20);
+                        ctx.quadraticCurveTo(-18, 28, -12 + Math.sin(b.anim*1.5)*8, 38);
+                        ctx.stroke();
+                    }
+
+                    ctx.shadowBlur = 0;
+                    let offsetY = b.type === 'bacilo' ? -2 : 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(-7, offsetY - 3, 4.5, 0, Math.PI * 2);
+                    ctx.arc(7, offsetY - 3, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#dc2626';
+                    ctx.beginPath();
+                    ctx.arc(-7, offsetY - 3, 2, 0, Math.PI * 2);
+                    ctx.arc(7, offsetY - 3, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#000000';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-11, offsetY - 9); ctx.lineTo(-3, offsetY - 5);
+                    ctx.moveTo(11, offsetY - 9);  ctx.lineTo(3, offsetY - 5);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.ellipse(0, offsetY + 6, 7, 5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(-5, offsetY + 2); ctx.lineTo(-3, offsetY + 7); ctx.lineTo(-1, offsetY + 2);
+                    ctx.moveTo(1, offsetY + 2);  ctx.lineTo(3, offsetY + 7);  ctx.lineTo(5, offsetY + 2);
+                    ctx.fill();
+
+                    ctx.restore();
+
+                    let dist = Math.hypot(whiteCell.x - b.x, whiteCell.y - b.y);
+                    if (dist < whiteCell.radius + b.radius) {
+                        playBeep(650, 'triangle', 0.08);
+                        score += 10;
+                        scoreVal.textContent = score;
+
+                        for (let p = 0; p < 8; p++) {
+                            particles.push({
+                                x: b.x, y: b.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                radius: 3 + Math.random() * 3,
+                                life: 1.0, color: primaryColor
+                            });
+                        }
+
+                        bacteriaList.splice(i, 1);
+                        continue;
+                    }
+
+                    if (b.y + b.radius >= tissueTopY - bodyCellRadius) {
+                        playBeep(180, 'sawtooth', 0.25);
+                        livesLost++;
+
+                        const destructionRadius = b.radius + 32;
+                        for (let c = 0; c < tissueGrid.length; c++) {
+                            const cell = tissueGrid[c];
+                            if (cell.alive) {
+                                const distToImpact = Math.hypot(cell.x - b.x, cell.y - b.y);
+                                if (distToImpact <= destructionRadius) {
+                                    cell.alive = false;
+
+                                    for (let p = 0; p < 3; p++) {
+                                        particles.push({
+                                            x: cell.x, y: cell.y,
+                                            vx: (Math.random() - 0.5) * 7,
+                                            vy: (Math.random() - 0.5) * 7,
+                                            radius: 2 + Math.random() * 4,
+                                            life: 1.0, color: Math.random() < 0.6 ? '#f472b6' : '#581c87'
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        for (let p = 0; p < 10; p++) {
+                            particles.push({
+                                x: b.x, y: b.y,
+                                vx: (Math.random() - 0.5) * 8,
+                                vy: (Math.random() - 0.5) * 6 - 2,
+                                radius: 3 + Math.random() * 4,
+                                life: 1.0, color: primaryColor
+                            });
+                        }
+
+                        bacteriaList.splice(i, 1);
+
+                        if (livesLost >= 3) {
+                            gameOver("¡TEJIDO DESTRUIDO!", "Las bacterias atravesaron tus defensas y destruyeron el tejido celular.");
+                            return;
+                        }
+                    }
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.04;
+
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = Math.max(0, p.life);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+
+                    if (p.life <= 0) particles.splice(i, 1);
+                }
+
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            gameLoop();
+        }
+
+        // Inicializar canvas al cargar
+        resizeCanvas();
+    </script>
+</body>
+</html>

@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reino Hongos - Expansión del Micelio</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #030712;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: calc(100vw * (20 / 9));
+            max-height: 100vh;
+            max-width: calc(100vh * (9 / 20));
+            background-color: #061e30;
+            overflow: hidden;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Barra superior del juego */
+        .game-navbar {
+            height: 54px;
+            background-color: #031422;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            border-bottom: 2px solid rgba(168, 85, 247, 0.4);
+            z-index: 10;
+        }
+
+        .game-title-text {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: #c084fc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .score-display {
+            font-size: 0.85rem;
+            font-weight: bold;
+            background: #000000;
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid #6b21a8;
+            color: #ffd700;
+        }
+
+        /* Área de Canvas */
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100% - 54px);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        /* Pantalla superpuesta (Overlay) */
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 18, 30, 0.94);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 22px;
+            text-align: center;
+            z-index: 30;
+        }
+
+        .game-overlay.hidden { display: none; }
+
+        .overlay-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: #c084fc;
+            text-shadow: 0 0 10px rgba(192, 132, 252, 0.5);
+        }
+
+        .overlay-desc {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-bottom: 22px;
+            line-height: 1.5;
+            max-width: 320px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 80%;
+            max-width: 220px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #a855f7, #6b21a8);
+            border: none;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .action-btn.secondary-btn {
+            background: linear-gradient(135deg, #334155, #1e293b);
+            border: 1px solid rgba(168, 85, 247, 0.5);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            color: #e2e8f0;
+        }
+
+        .action-btn:active { transform: scale(0.96); }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Barra de navegación -->
+        <div class="game-navbar">
+            <div class="game-title-text">REINO HONGOS</div>
+            <div class="score-display">Pts: <span id="score-val">0</span></div>
+        </div>
+
+        <!-- Área de juego -->
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Pantalla superpuesta (Menú / Game Over) -->
+            <div id="overlay" class="game-overlay">
+                <div class="overlay-title" id="overlay-title">Expansión del Micelio</div>
+                <div class="overlay-desc" id="overlay-desc">
+                    Mueve tu <b>cursor</b> o <b>desliza el dedo</b> para guiar el crecimiento de la <b>hifa</b>.<br><br>
+                    🍃 <b>Materia Orgánica:</b> Otorga <b>+10 pts</b> y alarga tu hifa.<br>
+                    🔗 <b>Conexión tenue:</b> Mantiene el enlace con el hongo sin provocar colisión.<br><br>
+                    ⚠️ <b>Fin de Juego:</b> Pierdes si chocas contra el cuerpo activo de la hifa o los bordes.
+                </div>
+                <div class="btn-group">
+                    <button class="action-btn" id="start-btn" onclick="startGame()">¡JUGAR!</button>
+                    <button class="action-btn secondary-btn" id="island-btn" onclick="window.location.href='index.html'">VOLVER A LA ISLA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scoreVal = document.getElementById('score-val');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlay-title');
+        const overlayDesc = document.getElementById('overlay-desc');
+        const startBtn = document.getElementById('start-btn');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let score = 0;
+        let isGameRunning = false;
+        let animationFrameId = null;
+
+        // Efectos de sonido con Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // Adaptación de resolución del canvas
+        let displayWidth = 0;
+        let displayHeight = 0;
+        let soilPebbles = [];
+        let soilRoots = [];
+        let grassTufts = [];
+
+        function generateEnvironmentDetails(soilY) {
+            soilPebbles = [];
+            soilRoots = [];
+            grassTufts = [];
+
+            // Generar guijarros subterráneos
+            for (let i = 0; i < 45; i++) {
+                soilPebbles.push({
+                    x: Math.random() * displayWidth,
+                    y: soilY + 15 + Math.random() * (displayHeight - soilY - 30),
+                    rx: 2 + Math.random() * 5,
+                    ry: 1.5 + Math.random() * 3,
+                    rot: Math.random() * Math.PI,
+                    color: ['#2a1810', '#1c100a', '#362217', '#462e1f', '#140c07'][Math.floor(Math.random() * 5)]
+                });
+            }
+
+            // Generar raíces secundarias de fondo
+            for (let i = 0; i < 9; i++) {
+                let rx = Math.random() * displayWidth;
+                let ry = soilY + Math.random() * 15;
+                let points = [{x: rx, y: ry}];
+                let len = 4 + Math.floor(Math.random() * 5);
+                let curX = rx, curY = ry;
+                for (let j = 0; j < len; j++) {
+                    curX += (Math.random() - 0.5) * 28;
+                    curY += 12 + Math.random() * 22;
+                    points.push({x: curX, y: curY});
+                }
+                soilRoots.push({
+                    points: points,
+                    width: 0.8 + Math.random() * 1.2,
+                    alpha: 0.12 + Math.random() * 0.18
+                });
+            }
+
+            // Generar brotes de césped en el suelo
+            const count = Math.floor(displayWidth / 8);
+            for (let i = 0; i <= count; i++) {
+                let gx = (i / count) * displayWidth + (Math.random() - 0.5) * 4;
+                let gy = soilY + Math.sin(i * 1.8) * 4 + Math.cos(i * 3.1) * 2;
+                grassTufts.push({
+                    x: gx,
+                    y: gy,
+                    h: 5 + Math.random() * 7,
+                    angle: (Math.random() - 0.5) * 0.5
+                });
+            }
+        }
+
+        function resizeCanvas() {
+            const wrapper = canvas.parentElement;
+            displayWidth = wrapper.clientWidth;
+            displayHeight = wrapper.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+
+            generateEnvironmentDetails(100);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let touchX = displayWidth / 2;
+        let touchY = displayHeight / 2;
+
+        function updatePointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            touchX = clientX - rect.left;
+            touchY = clientY - rect.top;
+        }
+
+        canvas.addEventListener('touchstart', (e) => { updatePointerPos(e); }, { passive: true });
+        canvas.addEventListener('touchmove', (e) => { updatePointerPos(e); }, { passive: true });
+        canvas.addEventListener('mousemove', (e) => { updatePointerPos(e); });
+
+        function startGame() {
+            overlay.classList.add('hidden');
+            score = 0;
+            scoreVal.textContent = '0';
+            isGameRunning = true;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            initFungiGame();
+        }
+
+        function gameOver(customTitle, customDesc) {
+            isGameRunning = false;
+            playBeep(120, 'sawtooth', 0.4);
+            overlayTitle.textContent = customTitle || "¡GAME OVER!";
+            overlayDesc.innerHTML = `${customDesc}<br><br>Puntuación Final: <b style="font-size:1.3rem; color:#ffd700;">${score} pts</b>`;
+            startBtn.textContent = "Reintentar";
+            overlay.classList.remove('hidden');
+        }
+
+        // =========================================================
+        // LÓGICA DEL MINIJUEGO DE HONGOS
+        // =========================================================
+        function initFungiGame() {
+            const soilY = 100; // Nivel del suelo
+            const hongoX = displayWidth / 2;
+            const startX = displayWidth / 2;
+            const startY = soilY + 100;
+
+            if (soilPebbles.length === 0) generateEnvironmentDetails(soilY);
+
+            touchX = startX;
+            touchY = startY + 120;
+
+            let head = { x: startX, y: startY };
+            let angle = Math.PI / 2;
+            let speed = 1.6;
+            let maxTurnRate = 0.085;
+            let maxLength = 90;
+
+            let trail = [];
+            const initialSegments = 20;
+            for (let i = initialSegments; i >= 0; i--) {
+                let t = i / initialSegments;
+                trail.push({
+                    x: startX,
+                    y: startY - (1 - t) * maxLength
+                });
+            }
+
+            let organicMatter = null;
+            let sporeParticles = [];
+            let nextSporeMilestone = 50;
+
+            function distToSegment(px, py, vx, vy, wx, wy) {
+                let l2 = (wx - vx) ** 2 + (wy - vy) ** 2;
+                if (l2 === 0) return Math.hypot(px - vx, py - vy);
+                let t = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                return Math.hypot(px - (vx + t * (wx - vx)), py - (vy + t * (wy - vy)));
+            }
+
+            function spawnOrganicMatter() {
+                const minX = 30, maxX = displayWidth - 30;
+                const minY = soilY + 35, maxY = displayHeight - 35;
+
+                let valid = false;
+                let attempts = 0;
+                let px, py;
+
+                while (!valid && attempts < 100) {
+                    attempts++;
+                    px = Math.random() * (maxX - minX) + minX;
+                    py = Math.random() * (maxY - minY) + minY;
+
+                    let tooClose = false;
+                    for (let i = 0; i < trail.length - 1; i++) {
+                        let d = distToSegment(px, py, trail[i].x, trail[i].y, trail[i + 1].x, trail[i + 1].y);
+                        if (d < 25) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    if (!tooClose) valid = true;
+                }
+
+                organicMatter = {
+                    x: px,
+                    y: py,
+                    radius: 14,
+                    pulse: 0
+                };
+            }
+
+            spawnOrganicMatter();
+
+            function triggerSporeBurst() {
+                const hongoCapY = soilY - 52;
+                const sporesCount = 6;
+                for (let i = 0; i < sporesCount; i++) {
+                    sporeParticles.push({
+                        x: hongoX + (Math.random() - 0.5) * 30,
+                        y: hongoCapY,
+                        vx: (Math.random() - 0.5) * 5.0,
+                        vy: -Math.random() * 4.5 - 2,
+                        radius: 3 + Math.random() * 3,
+                        alpha: 1.0,
+                        color: i % 2 === 0 ? '#e9d5ff' : '#fef08a'
+                    });
+                }
+
+                score += sporesCount * 10;
+                scoreVal.textContent = score;
+                playBeep(1100, 'sine', 0.22);
+            }
+
+            // FUNCIÓN PARA DIBUJAR UN HONGO REALISTA
+            function drawRealisticMushroom(x, baseY) {
+                ctx.save();
+
+                // 1. Resplandor bioluminiscente del hongo
+                let glowGrad = ctx.createRadialGradient(x, baseY - 40, 10, x, baseY - 40, 75);
+                glowGrad.addColorStop(0, 'rgba(168, 85, 247, 0.35)');
+                glowGrad.addColorStop(0.6, 'rgba(147, 51, 234, 0.12)');
+                glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = glowGrad;
+                ctx.beginPath();
+                ctx.arc(x, baseY - 40, 75, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 2. Base y Sombras del pie
+                ctx.fillStyle = 'rgba(15, 8, 4, 0.6)';
+                ctx.beginPath();
+                ctx.ellipse(x, baseY + 2, 18, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 3. Tallo Fibroso (Estípite)
+                let stemGrad = ctx.createLinearGradient(x - 12, baseY - 50, x + 12, baseY);
+                stemGrad.addColorStop(0, '#fef3c7');
+                stemGrad.addColorStop(0.3, '#fde68a');
+                stemGrad.addColorStop(0.7, '#d97706');
+                stemGrad.addColorStop(1, '#78350f');
+
+                ctx.fillStyle = stemGrad;
+                ctx.beginPath();
+                ctx.moveTo(x - 9, baseY + 1);
+                ctx.bezierCurveTo(x - 13, baseY - 20, x - 10, baseY - 42, x - 8, baseY - 50);
+                ctx.lineTo(x + 8, baseY - 50);
+                ctx.bezierCurveTo(x + 10, baseY - 42, x + 13, baseY - 20, x + 9, baseY + 1);
+                ctx.closePath();
+                ctx.fill();
+
+                // Vetas de fibra en el tallo
+                ctx.strokeStyle = 'rgba(120, 53, 15, 0.3)';
+                ctx.lineWidth = 1;
+                for (let i = -5; i <= 5; i += 3) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + i, baseY);
+                    ctx.quadraticCurveTo(x + i * 0.8, baseY - 25, x + i * 0.6, baseY - 48);
+                    ctx.stroke();
+                }
+
+                // Anillo del Tallo (Velo)
+                ctx.fillStyle = '#fef3c7';
+                ctx.beginPath();
+                ctx.ellipse(x, baseY - 32, 10, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#b45309';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // 4. Láminas bajo el sombrerillo (Gills)
+                ctx.fillStyle = '#2e102e';
+                ctx.beginPath();
+                ctx.ellipse(x, baseY - 50, 24, 7, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#6b21a8';
+                ctx.lineWidth = 1;
+                for (let a = 0; a < Math.PI; a += Math.PI / 12) {
+                    let gx1 = x + Math.cos(a) * 22;
+                    let gy1 = (baseY - 50) + Math.sin(a) * 5;
+                    let gx2 = x - Math.cos(a) * 22;
+                    let gy2 = (baseY - 50) - Math.sin(a) * 5;
+                    ctx.beginPath();
+                    ctx.moveTo(gx1, gy1);
+                    ctx.lineTo(gx2, gy2);
+                    ctx.stroke();
+                }
+
+                // 5. Píleo (Sombrerillo Orgánico Realista)
+                let capGrad = ctx.createRadialGradient(x - 6, baseY - 68, 5, x, baseY - 52, 36);
+                capGrad.addColorStop(0, '#e9d5ff');
+                capGrad.addColorStop(0.25, '#c084fc');
+                capGrad.addColorStop(0.65, '#7e22ce');
+                capGrad.addColorStop(1, '#3b0764');
+
+                ctx.fillStyle = capGrad;
+                ctx.beginPath();
+                ctx.moveTo(x - 32, baseY - 48);
+                ctx.bezierCurveTo(x - 34, baseY - 78, x + 34, baseY - 78, x + 32, baseY - 48);
+                ctx.quadraticCurveTo(x, baseY - 42, x - 32, baseY - 48);
+                ctx.closePath();
+                ctx.fill();
+
+                // Brillo especular en la cúpula
+                let highlightGrad = ctx.createLinearGradient(x - 15, baseY - 72, x + 10, baseY - 60);
+                highlightGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+                highlightGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = highlightGrad;
+                ctx.beginPath();
+                ctx.ellipse(x - 8, baseY - 65, 14, 6, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Escamas / Pintas rugosas del sombrerillo
+                const spots = [
+                    {x: x - 12, y: baseY - 64, r: 3.5},
+                    {x: x + 8, y: baseY - 62, r: 4.2},
+                    {x: x - 20, y: baseY - 55, r: 3.0},
+                    {x: x + 18, y: baseY - 54, r: 3.8},
+                    {x: x, y: baseY - 71, r: 3.0},
+                    {x: x - 3, y: baseY - 58, r: 2.5}
+                ];
+
+                spots.forEach(sp => {
+                    // Sombra tenue bajo la pinta
+                    ctx.fillStyle = 'rgba(59, 7, 100, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(sp.x + 1, sp.y + 1, sp.r, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pinta clara
+                    ctx.fillStyle = '#faf5ff';
+                    ctx.beginPath();
+                    ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // 6. Musgo en la base del pie
+                ctx.fillStyle = '#3f6212';
+                ctx.beginPath();
+                ctx.arc(x - 10, baseY, 5, 0, Math.PI * 2);
+                ctx.arc(x + 10, baseY, 6, 0, Math.PI * 2);
+                ctx.arc(x - 4, baseY + 1, 4, 0, Math.PI * 2);
+                ctx.arc(x + 5, baseY + 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            function fungiGameLoop() {
+                if (!isGameRunning) return;
+                ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+                // =========================================================
+                // FONDO Y SUBSUELO REALISTA
+                // =========================================================
+                // CIELO SUPERIOR DE FONDO
+                ctx.fillStyle = '#030d18';
+                ctx.fillRect(0, 0, displayWidth, soilY);
+
+                // GRADIENTE DE TIERRA Y SUBSUELO
+                let subsoilGrad = ctx.createLinearGradient(0, soilY, 0, displayHeight);
+                subsoilGrad.addColorStop(0, '#26140b');
+                subsoilGrad.addColorStop(0.2, '#180d07');
+                subsoilGrad.addColorStop(0.7, '#0f0804');
+                subsoilGrad.addColorStop(1, '#050302');
+                ctx.fillStyle = subsoilGrad;
+                ctx.fillRect(0, soilY, displayWidth, displayHeight - soilY);
+
+                // RAÍCES DE FONDO EN EL SUBSUELO
+                ctx.save();
+                soilRoots.forEach(r => {
+                    ctx.strokeStyle = `rgba(161, 98, 7, ${r.alpha})`;
+                    ctx.lineWidth = r.width;
+                    ctx.beginPath();
+                    r.points.forEach((pt, idx) => {
+                        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    });
+                    ctx.stroke();
+                });
+
+                // GUIJARROS Y PIEDRAS SUBTERRÁNEAS
+                soilPebbles.forEach(p => {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                });
+                ctx.restore();
+
+                // LÍNEA DE SUELO Y CÉSPED ORGANICO
+                ctx.save();
+                let soilGrad = ctx.createLinearGradient(0, soilY - 10, 0, soilY + 15);
+                soilGrad.addColorStop(0, '#3f6212');
+                soilGrad.addColorStop(0.35, '#854d0e');
+                soilGrad.addColorStop(1, '#26140b');
+
+                ctx.fillStyle = soilGrad;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(displayWidth, 0);
+                ctx.lineTo(displayWidth, soilY);
+
+                const bumps = 16;
+                for (let i = bumps; i >= 0; i--) {
+                    let bx = (i / bumps) * displayWidth;
+                    let by = soilY + Math.sin(i * 1.8) * 4 + Math.cos(i * 3.1) * 2;
+                    ctx.lineTo(bx, by);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Dibujar briznas de hierba
+                ctx.strokeStyle = '#65a30d';
+                ctx.lineWidth = 1.8;
+                grassTufts.forEach(gt => {
+                    ctx.beginPath();
+                    ctx.moveTo(gt.x, gt.y);
+                    ctx.lineTo(gt.x + Math.sin(gt.angle) * gt.h, gt.y - gt.h);
+                    ctx.stroke();
+                });
+                ctx.restore();
+
+                // DIBUJAR HONGO REALISTA
+                drawRealisticMushroom(hongoX, soilY - 2);
+
+                // GIRO FLUIDO DE LA CABEZA
+                let distToTouch = Math.hypot(touchX - head.x, touchY - head.y);
+                if (distToTouch > 10) {
+                    let targetAngle = Math.atan2(touchY - head.y, touchX - head.x);
+                    let angleDiff = targetAngle - angle;
+
+                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+                    angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), maxTurnRate);
+                }
+
+                // AVANCE CONTINUO DE LA CABEZA
+                head.x += Math.cos(angle) * speed;
+                head.y += Math.sin(angle) * speed;
+                trail.push({ x: head.x, y: head.y });
+
+                // MANTENER LONGITUD MÁXIMA
+                let currentLen = 0;
+                for (let i = trail.length - 1; i > 0; i--) {
+                    currentLen += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y);
+                }
+
+                while (trail.length > 2) {
+                    let d0 = Math.hypot(trail[1].x - trail[0].x, trail[1].y - trail[0].y);
+                    if (currentLen - d0 >= maxLength) {
+                        currentLen -= d0;
+                        trail.shift();
+                    } else if (currentLen > maxLength) {
+                        let excess = currentLen - maxLength;
+                        let ratio = excess / (d0 || 1);
+                        trail[0].x = trail[0].x + (trail[1].x - trail[0].x) * ratio;
+                        trail[0].y = trail[0].y + (trail[1].y - trail[0].y) * ratio;
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+
+                // COLISIÓN CON BORDES
+                if (head.x < 12 || head.x > displayWidth - 12 || head.y > displayHeight - 12 || head.y < soilY + 8) {
+                    gameOver("¡MICELIO BLOQUEADO!", "Has colisionado contra los límites del terreno o la superficie.");
+                    return;
+                }
+
+                // COLISIÓN CON UNO MISMO
+                let distFromHead = 0;
+                let safeCutoffIndex = trail.length - 1;
+                for (let i = trail.length - 1; i > 0; i--) {
+                    distFromHead += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y);
+                    if (distFromHead > 30) {
+                        safeCutoffIndex = i - 1;
+                        break;
+                    }
+                }
+
+                for (let i = 0; i < safeCutoffIndex; i++) {
+                    let d = distToSegment(head.x, head.y, trail[i].x, trail[i].y, trail[i + 1].x, trail[i + 1].y);
+                    if (d < 5.0) {
+                        gameOver("¡MICELIO ENCERRADO!", "Has colisionado con tu propia hifa. ¡Te has cerrado el paso!");
+                        return;
+                    }
+                }
+
+                // DIBUJAR PSEUDOCONEXIÓN TENUE (50% Transparente - SIN COLISIÓN)
+                if (trail.length > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.5;
+                    ctx.strokeStyle = '#c084fc';
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#c084fc';
+                    ctx.lineCap = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(hongoX, soilY);
+                    let midY = (soilY + trail[0].y) / 2;
+                    ctx.quadraticCurveTo(hongoX, midY, trail[0].x, trail[0].y);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // DIBUJAR CUERPO ACTIVO DE LA HIFA
+                ctx.save();
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#fde047';
+                ctx.strokeStyle = '#fef08a';
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                if (trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(trail[0].x, trail[0].y);
+                    for (let i = 1; i < trail.length - 1; i++) {
+                        let xc = (trail[i].x + trail[i + 1].x) / 2;
+                        let yc = (trail[i].y + trail[i + 1].y) / 2;
+                        ctx.quadraticCurveTo(trail[i].x, trail[i].y, xc, yc);
+                    }
+                    ctx.lineTo(trail[trail.length - 1].x, trail[trail.length - 1].y);
+                    ctx.stroke();
+                }
+
+                // Cabeza de la Hifa
+                ctx.shadowBlur = 16;
+                ctx.shadowColor = '#a855f7';
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(head.x, head.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // MATERIA ORGÁNICA
+                if (organicMatter) {
+                    organicMatter.pulse += 0.05;
+                    let pulseRadius = organicMatter.radius + Math.sin(organicMatter.pulse) * 2.5;
+
+                    ctx.save();
+                    ctx.translate(organicMatter.x, organicMatter.y);
+                    ctx.shadowBlur = 16;
+                    ctx.shadowColor = '#a3e635';
+
+                    ctx.fillStyle = '#65a30d';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, pulseRadius * 1.1, pulseRadius * 0.7, 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(-2, -2, 4, 0, Math.PI * 2);
+                    ctx.arc(4, 3, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    let distToFood = Math.hypot(head.x - organicMatter.x, head.y - organicMatter.y);
+                    if (distToFood < organicMatter.radius + 6) {
+                        playBeep(880, 'sine', 0.12);
+                        score += 10;
+                        scoreVal.textContent = score;
+
+                        maxLength += 35;
+                        speed = 1.6 + Math.min(1.2, score * 0.008);
+
+                        if (score >= nextSporeMilestone) {
+                            nextSporeMilestone += 50;
+                            triggerSporeBurst();
+                        }
+
+                        spawnOrganicMatter();
+                    }
+                }
+
+                // ANIMACIÓN DE ESPORAS
+                for (let i = sporeParticles.length - 1; i >= 0; i--) {
+                    let sp = sporeParticles[i];
+                    sp.x += sp.vx;
+                    sp.y += sp.vy;
+                    sp.alpha -= 0.022;
+
+                    ctx.fillStyle = sp.color;
+                    ctx.globalAlpha = Math.max(0, sp.alpha);
+                    ctx.beginPath();
+                    ctx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+
+                    if (sp.alpha <= 0) sporeParticles.splice(i, 1);
+                }
+
+                animationFrameId = requestAnimationFrame(fungiGameLoop);
+            }
+
+            fungiGameLoop();
+        }
+    </script>
+</body>
+</html>

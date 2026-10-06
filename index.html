@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BIO-ISLAND: Reinos Biológicos</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #030712;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        /* Contenedor principal con relación de aspecto 9:20 */
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: calc(100vw * (20 / 9));
+            max-height: 100vh;
+            max-width: calc(100vh * (9 / 20));
+            background-color: #000000;
+            overflow: hidden;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+        }
+
+        /* --- MAPA DE LA ISLA --- */
+        #map-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('isla.jpg');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 1;
+        }
+
+        /* Encabezado */
+        .header-title {
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0) 100%);
+            padding: 22px 15px 12px;
+            text-align: center;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .header-title h1 {
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: #38bdf8;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+        }
+
+        .header-title p {
+            font-size: 0.8rem;
+            color: #e2e8f0;
+            margin-top: 3px;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+        }
+
+        /* Enlaces / Pines en la isla */
+        .pin {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            text-decoration: none;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .pin:hover, .pin:active, .pin:focus {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        .pin-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.4);
+            border: 2px solid #ffffff;
+            animation: floatPin 3s ease-in-out infinite;
+        }
+
+        .pin-badge {
+            background-color: rgba(10, 15, 26, 0.9);
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 5px;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.25);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+        }
+
+        /* Ubicación de los 5 Reinos */
+        #pin-animalia { top: 17%; left: 50%; }
+        #pin-animalia .pin-icon { background: linear-gradient(135deg, #8B4513, #A0522D); }
+
+        #pin-plantae { top: 38%; left: 45%; }
+        #pin-plantae .pin-icon { background: linear-gradient(135deg, #2e7d32, #4caf50); }
+
+        #pin-fungi { top: 48%; left: 72%; }
+        #pin-fungi .pin-icon { background: linear-gradient(135deg, #6a1b9a, #ab47bc); }
+
+        #pin-protista { top: 58%; left: 38%; }
+        #pin-protista .pin-icon { background: linear-gradient(135deg, #0288d1, #00f0ff); }
+
+        #pin-monera { top: 78%; left: 50%; }
+        #pin-monera .pin-icon { background: linear-gradient(135deg, #c62828, #ef5350); }
+
+        @keyframes floatPin {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        
+        <!-- MAPA DE LA ISLA -->
+        <div id="map-screen">
+            <div class="header-title">
+                <h1>BIO-ISLAND</h1>
+                <p>Elige un reino para explorar</p>
+            </div>
+
+            <a href="animales.html" class="pin" id="pin-animalia">
+                <div class="pin-icon">🦁</div>
+                <div class="pin-badge">Reino Animal</div>
+            </a>
+
+            <a href="plantas.html" class="pin" id="pin-plantae">
+                <div class="pin-icon">🌿</div>
+                <div class="pin-badge">Reino Plantas</div>
+            </a>
+
+            <a href="hongos.html" class="pin" id="pin-fungi">
+                <div class="pin-icon">🍄</div>
+                <div class="pin-badge">Reino Hongos</div>
+            </a>
+
+            <a href="protoctistas.html" class="pin" id="pin-protista">
+                <div class="pin-icon">🦠</div>
+                <div class="pin-badge">Protoctistas</div>
+            </a>
+
+            <a href="moneras.html" class="pin" id="pin-monera">
+                <div class="pin-icon">🧫</div>
+                <div class="pin-badge">Reino Monera</div>
+            </a>
+        </div>
+
+    </div>
+
+</body>
+</html>
