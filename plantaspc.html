@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reino Plantas - La Fotosíntesis Realista</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #011612;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            color: #ffffff;
+            overflow: hidden;
+            padding: 12px;
+        }
+
+        #app-container {
+            position: relative;
+            /* Adaptación a 16:9 optimizada para PC / Navegador */
+            width: min(calc(100vw - 24px), calc((100vh - 24px) * (16 / 9)));
+            height: min(calc((100vw - 24px) * (9 / 16)), calc(100vh - 24px));
+            aspect-ratio: 16 / 9;
+            background-color: #082f49;
+            overflow: hidden;
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.95);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Barra superior */
+        .game-navbar {
+            height: 52px;
+            background: rgba(2, 20, 16, 0.92);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 2px solid rgba(52, 211, 153, 0.4);
+            z-index: 10;
+            flex-shrink: 0;
+            gap: 12px;
+        }
+
+        .back-btn {
+            background: #064e3b;
+            border: 1px solid #34d399;
+            color: #ffffff;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .back-btn:hover { background: #047857; }
+
+        .game-title-text {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #6ee7b7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(110, 231, 183, 0.3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lives-container {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .life-drop {
+            width: 18px;
+            height: 18px;
+            background: #22c55e;
+            clip-path: polygon(50% 0%, 100% 70%, 80% 100%, 20% 100%, 0% 70%);
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px #22c55e;
+        }
+
+        .life-drop.lost {
+            background: #475569;
+            opacity: 0.25;
+            transform: scale(0.75);
+            box-shadow: none;
+        }
+
+        .score-display {
+            font-size: 0.88rem;
+            font-weight: bold;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 5px 14px;
+            border-radius: 12px;
+            border: 1px solid #16a34a;
+            color: #facc15;
+            box-shadow: inset 0 0 6px rgba(250, 204, 21, 0.2);
+            white-space: nowrap;
+        }
+
+        /* Área de Canvas */
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: calc(100% - 52px);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* Botón situado en la línea del suelo (95px desde la base) */
+        #nutrient-btn {
+            position: absolute;
+            bottom: 95px;
+            left: 50%;
+            transform: translate(-50%, 50%);
+            padding: 8px 18px;
+            font-size: 0.8rem;
+            font-weight: 900;
+            color: #93c5fd;
+            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            border: 2px solid #3b82f6;
+            border-radius: 25px;
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.7);
+            transition: opacity 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+            opacity: 0.55;
+            pointer-events: none;
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+        }
+
+        #nutrient-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+            color: #ffffff;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            border-color: #60a5fa;
+            animation: pulse-glow 0.75s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                transform: translate(-50%, 50%) scale(1);
+                box-shadow: 0 0 10px #3b82f6, 0 0 20px #0284c7;
+            }
+            100% {
+                transform: translate(-50%, 50%) scale(1.08);
+                box-shadow: 0 0 22px #60a5fa, 0 0 38px #38bdf8;
+            }
+        }
+
+        #nutrient-btn:active {
+            transform: translate(-50%, 50%) scale(0.95) !important;
+        }
+
+        /* Pantalla superpuesta (Overlay) */
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 20, 16, 0.94);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            text-align: center;
+            z-index: 30;
+        }
+
+        .game-overlay.hidden { display: none; }
+
+        .overlay-title {
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: #6ee7b7;
+            text-shadow: 0 0 14px rgba(110, 231, 183, 0.5);
+        }
+
+        .overlay-desc {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin-bottom: 24px;
+            line-height: 1.6;
+            max-width: 540px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #10b981, #047857);
+            border: none;
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 800;
+            padding: 12px 28px;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+
+        .secondary-btn {
+            background: #1e293b;
+            border: 1px solid #475569;
+            color: #ffffff;
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 10px 22px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.15s ease;
+        }
+
+        .secondary-btn:hover {
+            background: #334155;
+        }
+
+        .action-btn:active, .secondary-btn:active { transform: scale(0.96); }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Barra superior -->
+        <div class="game-navbar">
+            <a href="index.html" class="back-btn">◀ Isla</a>
+            <div class="game-title-text">LA FOTOSÍNTESIS</div>
+            <div class="lives-container" id="lives-box">
+                <span class="life-drop"></span>
+                <span class="life-drop"></span>
+                <span class="life-drop"></span>
+            </div>
+            <div class="score-display">Pts: <span id="score-val">0</span></div>
+        </div>
+
+        <!-- Área de Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+
+            <button id="nutrient-btn" onclick="triggerPhotosynthesis()">💧 AGUA Y SALES MINERALES</button>
+
+            <!-- Pantalla superpuesta (Overlay) -->
+            <div id="overlay" class="game-overlay">
+                <div class="overlay-title" id="overlay-title">El Reino Planta</div>
+                <div class="overlay-desc" id="overlay-desc">
+                    Mueve la <b>planta</b> inclinándola con el cursor del ratón o el dedo.<br><br>
+                    🟡 Captura <b>Luz solar</b> (+1 pt) y 🔵 <b>Dióxido de carbono</b> (+1 pt).<br>
+                    💧 Pulsa el botón en la raíz para iniciar la <b>¡FOTOSÍNTESIS!</b> (+10 pts).<br><br>
+                    🐛 <b>¡Atención!</b> Evita que los gusanos toquen las hojas (3 vidas).
+                </div>
+                <div class="btn-group">
+                    <button class="action-btn" id="start-btn" onclick="startGame()">¡JUGAR!</button>
+                    <a href="index.html" class="secondary-btn" id="menu-btn" style="display:none;">Volver a la Isla</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scoreVal = document.getElementById('score-val');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlay-title');
+        const overlayDesc = document.getElementById('overlay-desc');
+        const startBtn = document.getElementById('start-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        const nutrientBtn = document.getElementById('nutrient-btn');
+        const livesBox = document.getElementById('lives-box');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let score = 0;
+        let lives = 3;
+        let isGameRunning = false;
+        let animationFrameId = null;
+
+        let hasLight = false;
+        let hasOxygen = false;
+
+        // Efectos de sonido con Web Audio API
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type = 'sine', duration = 0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        let displayWidth = 0;
+        let displayHeight = 0;
+        const soilYOffset = 95;
+
+        function resizeCanvas() {
+            const wrapper = canvas.parentElement;
+            displayWidth = wrapper.clientWidth;
+            displayHeight = wrapper.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+            initBackgroundElements();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        let touchX = 0;
+        let touchY = 0;
+
+        function updatePointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            touchX = clientX - rect.left;
+            touchY = clientY - rect.top;
+        }
+
+        canvas.addEventListener('touchstart', updatePointerPos, { passive: true });
+        canvas.addEventListener('touchmove', updatePointerPos, { passive: true });
+        canvas.addEventListener('mousemove', updatePointerPos);
+
+        function updateLivesUI() {
+            const drops = livesBox.querySelectorAll('.life-drop');
+            drops.forEach((drop, idx) => {
+                if (idx < lives) drop.classList.remove('lost');
+                else drop.classList.add('lost');
+            });
+        }
+
+        let clouds = [];
+        let windParticles = [];
+        let rootTree = [];
+
+        function initBackgroundElements() {
+            const soilY = displayHeight - soilYOffset;
+
+            clouds = [
+                { x: displayWidth * 0.08, y: 45, scale: 0.8, speed: 0.25 },
+                { x: displayWidth * 0.38, y: 65, scale: 1.0, speed: 0.18 },
+                { x: displayWidth * 0.68, y: 40, scale: 0.7, speed: 0.3 },
+                { x: displayWidth * 0.88, y: 70, scale: 0.9, speed: 0.22 }
+            ];
+
+            windParticles = [];
+            for (let i = 0; i < 16; i++) {
+                windParticles.push({
+                    x: Math.random() * displayWidth,
+                    y: 35 + Math.random() * (soilY - 60),
+                    length: 25 + Math.random() * 45,
+                    speed: 2.5 + Math.random() * 3.5,
+                    alpha: 0.15 + Math.random() * 0.25
+                });
+            }
+
+            rootTree = [];
+            function buildBranch(x, y, angle, length, depth, width) {
+                if (depth <= 0 || length < 3) return;
+                const endX = x + Math.cos(angle) * length;
+                const endY = y + Math.sin(angle) * length;
+                const ctrlX = (x + endX) / 2 + (Math.sin(depth * 3) * 5);
+                const ctrlY = (y + endY) / 2 + (Math.cos(depth * 2) * 5);
+
+                rootTree.push({ x, y, ctrlX, ctrlY, endX, endY, width, depth });
+
+                if (depth > 1) {
+                    buildBranch(endX, endY, angle - 0.42 + (depth * 0.05), length * 0.72, depth - 1, width * 0.65);
+                    buildBranch(endX, endY, angle + 0.42 - (depth * 0.05), length * 0.72, depth - 1, width * 0.65);
+                }
+            }
+
+            const plantBaseX = displayWidth / 2;
+            buildBranch(plantBaseX, soilY, Math.PI / 2, 32, 5, 6);
+            buildBranch(plantBaseX, soilY, Math.PI / 2 - 0.55, 26, 4, 4.5);
+            buildBranch(plantBaseX, soilY, Math.PI / 2 + 0.55, 26, 4, 4.5);
+        }
+
+        resizeCanvas();
+
+        function startGame() {
+            overlay.classList.add('hidden');
+            score = 0;
+            lives = 3;
+            hasLight = false;
+            hasOxygen = false;
+            scoreVal.textContent = '0';
+            nutrientBtn.classList.remove('active');
+            updateLivesUI();
+
+            isGameRunning = true;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            initPlantGame();
+        }
+
+        function gameOver() {
+            isGameRunning = false;
+            playSound(120, 'sawtooth', 0.5);
+            overlayTitle.textContent = "¡FIN DE LA PARTIDA!";
+            overlayDesc.innerHTML = `Los gusanos han devorado la planta.<br><br>Puntuación Final: <b style="font-size:1.3rem; color:#ffd700;">${score} pts</b>`;
+            startBtn.textContent = "Volver a Jugar";
+            menuBtn.style.display = "inline-block";
+            overlay.classList.remove('hidden');
+        }
+
+        function triggerPhotosynthesis() {
+            if (!hasLight || !hasOxygen || !isGameRunning) return;
+
+            score += 10;
+            scoreVal.textContent = score;
+            hasLight = false;
+            hasOxygen = false;
+            nutrientBtn.classList.remove('active');
+
+            playSound(587.33, 'sine', 0.15);
+            setTimeout(() => playSound(880, 'sine', 0.25), 100);
+
+            createPhotosynthesisEffects();
+        }
+
+        let effects = [];
+        function createPhotosynthesisEffects() {
+            effects.push({
+                type: 'text',
+                text: '¡FOTOSÍNTESIS!',
+                x: leafPos.x,
+                y: leafPos.y - 35,
+                alpha: 1.0,
+                scale: 0.5
+            });
+
+            for (let i = 0; i < 22; i++) {
+                effects.push({
+                    type: 'particle',
+                    x: leafPos.x,
+                    y: leafPos.y,
+                    vx: (Math.random() - 0.5) * 7,
+                    vy: (Math.random() - 0.5) * 7 - 2,
+                    color: Math.random() > 0.5 ? '#86efac' : '#fef08a',
+                    radius: 3 + Math.random() * 4,
+                    alpha: 1.0
+                });
+            }
+        }
+
+        function getQuadBezierPoint(t, p0, p1, p2) {
+            let oneMinusT = 1 - t;
+            let x = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
+            let y = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
+
+            let dx = 2 * oneMinusT * (p1.x - p0.x) + 2 * t * (p2.x - p1.x);
+            let dy = 2 * oneMinusT * (p1.y - p0.y) + 2 * t * (p2.y - p1.y);
+            let tangentAngle = Math.atan2(dy, dx);
+
+            return { x, y, tangentAngle };
+        }
+
+        function drawRealisticStemLeaf(ctx, x, y, tangentAngle, side, scale = 1.0) {
+            ctx.save();
+
+            ctx.fillStyle = '#1c130b';
+            ctx.beginPath();
+            ctx.arc(x, y, 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            let branchAngle = tangentAngle + (side * Math.PI / 2.7);
+            let petioleLength = 12 * scale;
+            let leafStartX = x + Math.cos(branchAngle) * petioleLength;
+            let leafStartY = y + Math.sin(branchAngle) * petioleLength;
+
+            ctx.strokeStyle = '#2d4814';
+            ctx.lineWidth = 2.5 * scale;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(leafStartX, leafStartY);
+            ctx.stroke();
+
+            ctx.translate(leafStartX, leafStartY);
+            let leafRotation = branchAngle - Math.PI / 2;
+            ctx.rotate(leafRotation);
+            ctx.scale(scale, scale);
+
+            let leafGrad = ctx.createLinearGradient(0, 0, 0, -32);
+            leafGrad.addColorStop(0, '#15803d');
+            leafGrad.addColorStop(0.6, '#22c55e');
+            leafGrad.addColorStop(1, '#4ade80');
+            ctx.fillStyle = leafGrad;
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-15, -10, -15, -28, 0, -38);
+            ctx.bezierCurveTo(15, -28, 15, -10, 0, 0);
+            ctx.fill();
+
+            ctx.strokeStyle = '#86efac';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -32);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawRoundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        let leafPos = { x: displayWidth / 2, y: displayHeight - 200 };
+
+        function initPlantGame() {
+            const soilY = displayHeight - soilYOffset;
+            const plantBaseX = displayWidth / 2;
+            const stemLength = 115;
+
+            touchX = plantBaseX;
+            touchY = soilY - stemLength;
+
+            let fallingItems = [];
+            let lastSpawnTime = performance.now();
+
+            function spawnItem() {
+                const rand = Math.random();
+                let itemType = 'light'; 
+                if (rand < 0.45) itemType = 'oxygen'; 
+                else if (rand < 0.72) itemType = 'worm'; 
+
+                // Área de caída acotada al alcance máximo lateral de la hoja (~95px alrededor del centro)
+                const reachRadius = 95;
+                const minX = plantBaseX - reachRadius;
+                const maxX = plantBaseX + reachRadius;
+
+                fallingItems.push({
+                    x: minX + Math.random() * (maxX - minX),
+                    y: -30,
+                    vy: 1.6 + Math.random() * 1.4 + (score * 0.02),
+                    type: itemType,
+                    radius: itemType === 'worm' ? 26 : 22,
+                    wiggle: Math.random() * Math.PI * 2
+                });
+            }
+
+            function gameLoop(now) {
+                if (!isGameRunning) return;
+                ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+                // CELESTE DEL CIELO
+                let skyGrad = ctx.createLinearGradient(0, 0, 0, soilY);
+                skyGrad.addColorStop(0, '#0284c7');
+                skyGrad.addColorStop(0.55, '#38bdf8');
+                skyGrad.addColorStop(1, '#bae6fd');
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, displayWidth, soilY);
+
+                // SOL
+                ctx.save();
+                let sunX = displayWidth * 0.88;
+                let sunY = 55;
+                let sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 60);
+                sunGlow.addColorStop(0, 'rgba(254, 240, 138, 1)');
+                sunGlow.addColorStop(0.3, 'rgba(250, 204, 21, 0.6)');
+                sunGlow.addColorStop(1, 'rgba(250, 204, 21, 0)');
+                ctx.fillStyle = sunGlow;
+                ctx.beginPath();
+                ctx.arc(sunX, sunY, 60, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(sunX, sunY, 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // NUBES
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                clouds.forEach(c => {
+                    c.x += c.speed;
+                    if (c.x - 60 > displayWidth) c.x = -80;
+
+                    ctx.save();
+                    ctx.translate(c.x, c.y);
+                    ctx.scale(c.scale, c.scale);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                    ctx.arc(18, -10, 22, 0, Math.PI * 2);
+                    ctx.arc(40, 0, 18, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                });
+
+                // LEYENDA SUPERIOR
+                ctx.save();
+                const legendY = 18;
+                const legendHeight = 26;
+                const legendWidth = Math.min(displayWidth * 0.8, 340);
+                const legendX = (displayWidth - legendWidth) / 2;
+
+                ctx.fillStyle = 'rgba(2, 20, 16, 0.75)';
+                ctx.strokeStyle = 'rgba(110, 231, 183, 0.35)';
+                ctx.lineWidth = 1;
+                drawRoundRect(ctx, legendX, legendY - 11, legendWidth, legendHeight, 13);
+                ctx.fill();
+                ctx.stroke();
+
+                const staticRadius = 10;
+
+                const item1X = legendX + 22;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#facc15';
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(item1X, legendY, staticRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#eab308';
+                ctx.beginPath();
+                ctx.arc(item1X, legendY, staticRadius * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 0.72rem system-ui, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Luz solar', item1X + 16, legendY + 1);
+
+                const item2X = legendX + (legendWidth / 2) + 10;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#38bdf8';
+                ctx.fillStyle = '#bae6fd';
+                ctx.beginPath();
+                ctx.arc(item2X, legendY, staticRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#0284c7';
+                ctx.beginPath();
+                ctx.arc(item2X - 3, legendY - 3, staticRadius * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 0.72rem system-ui, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Dióxido de carbono', item2X + 16, legendY + 1);
+
+                ctx.restore();
+
+                // VIENTO
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.lineWidth = 1.5;
+                windParticles.forEach(w => {
+                    w.x += w.speed;
+                    if (w.x > displayWidth) {
+                        w.x = -w.length;
+                        w.y = 35 + Math.random() * (soilY - 60);
+                    }
+                    ctx.beginPath();
+                    ctx.moveTo(w.x, w.y);
+                    ctx.lineTo(w.x + w.length, w.y);
+                    ctx.stroke();
+                });
+
+                // SUBSUELO
+                let soilGrad = ctx.createLinearGradient(0, soilY, 0, displayHeight);
+                soilGrad.addColorStop(0, '#291e12');
+                soilGrad.addColorStop(0.2, '#1c130b');
+                soilGrad.addColorStop(1, '#0a0603');
+                ctx.fillStyle = soilGrad;
+                ctx.fillRect(0, soilY, displayWidth, displayHeight - soilY);
+
+                ctx.fillStyle = '#15803d';
+                ctx.fillRect(0, soilY - 5, displayWidth, 7);
+                ctx.fillStyle = '#4ae367';
+                ctx.fillRect(0, soilY - 5, displayWidth, 2);
+
+                // RAÍCES
+                ctx.save();
+                ctx.strokeStyle = '#a16207';
+                ctx.lineCap = 'round';
+                rootTree.forEach(r => {
+                    ctx.lineWidth = r.width;
+                    ctx.beginPath();
+                    ctx.moveTo(r.x, r.y);
+                    ctx.quadraticCurveTo(r.ctrlX, r.ctrlY, r.endX, r.endY);
+                    ctx.stroke();
+                });
+                ctx.restore();
+
+                // CONTROL DE INCLINACIÓN DE LA PLANTA
+                let breeze = Math.sin(now * 0.0025) * 10;
+                let targetDx = (touchX - plantBaseX) + breeze;
+                let targetDy = touchY - soilY;
+
+                let targetAngle = Math.atan2(targetDy, targetDx);
+                targetAngle = Math.min(-Math.PI * 0.18, Math.max(-Math.PI * 0.82, targetAngle));
+
+                leafPos.x = plantBaseX + Math.cos(targetAngle) * stemLength;
+                leafPos.y = soilY + Math.sin(targetAngle) * stemLength;
+
+                let p0 = { x: plantBaseX, y: soilY };
+                let p1 = { x: plantBaseX + (leafPos.x - plantBaseX) * 0.45, y: soilY - (soilY - leafPos.y) * 0.55 };
+                let p2 = { x: leafPos.x, y: leafPos.y };
+
+                let leafNodes = [
+                    { t: 0.38, side: -1, scale: 0.75 },
+                    { t: 0.68, side: 1,  scale: 0.82 }
+                ];
+
+                leafNodes.forEach(node => {
+                    let pt = getQuadBezierPoint(node.t, p0, p1, p2);
+                    drawRealisticStemLeaf(ctx, pt.x, pt.y, pt.tangentAngle, node.side, node.scale);
+                });
+
+                // TALLO PRINCIPAL
+                ctx.save();
+                ctx.strokeStyle = '#2d1f10';
+                ctx.lineWidth = 11;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(p0.x, p0.y);
+                ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#4d6824';
+                ctx.lineWidth = 6;
+                ctx.stroke();
+                ctx.restore();
+
+                // HOJA PRINCIPAL SUPERIOR
+                ctx.save();
+                ctx.translate(leafPos.x, leafPos.y);
+
+                let leafAngle = targetAngle + Math.PI / 2;
+                ctx.rotate(leafAngle);
+
+                ctx.shadowBlur = (hasLight && hasOxygen) ? 22 : 6;
+                ctx.shadowColor = (hasLight && hasOxygen) ? '#38bdf8' : 'rgba(0,0,0,0.4)';
+
+                ctx.fillStyle = (hasLight && hasOxygen) ? '#4ade80' : '#15803d';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.bezierCurveTo(-34, -26, -34, -58, 0, -72);
+                ctx.bezierCurveTo(34, -58, 34, -26, 0, 0);
+                ctx.fill();
+
+                ctx.strokeStyle = '#86efac';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -66);
+                ctx.stroke();
+
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                for (let yOff = -16; yOff >= -52; yOff -= 12) {
+                    ctx.moveTo(0, yOff); ctx.lineTo(-16, yOff - 10);
+                    ctx.moveTo(0, yOff); ctx.lineTo(16, yOff - 10);
+                }
+                ctx.stroke();
+
+                if (hasLight) {
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(-12, -36, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                if (hasOxygen) {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#0284c7';
+                    ctx.beginPath();
+                    ctx.arc(12, -36, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                if (hasLight && hasOxygen) {
+                    nutrientBtn.classList.add('active');
+                } else {
+                    nutrientBtn.classList.remove('active');
+                }
+
+                // GENERACIÓN DE ELEMENTOS
+                if (now - lastSpawnTime > Math.max(650, 1400 - score * 16)) {
+                    spawnItem();
+                    lastSpawnTime = now;
+                }
+
+                for (let i = fallingItems.length - 1; i >= 0; i--) {
+                    let item = fallingItems[i];
+                    item.y += item.vy;
+                    item.wiggle += 0.08;
+
+                    ctx.save();
+                    if (item.type === 'light') {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#facc15';
+                        ctx.fillStyle = '#fef08a';
+                        ctx.beginPath();
+                        ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#eab308';
+                        ctx.beginPath();
+                        ctx.arc(item.x, item.y, item.radius * 0.45, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (item.type === 'oxygen') {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#38bdf8';
+                        ctx.fillStyle = '#bae6fd';
+                        ctx.beginPath();
+                        ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#0284c7';
+                        ctx.beginPath();
+                        ctx.arc(item.x - 5, item.y - 5, item.radius * 0.35, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (item.type === 'worm') {
+                        let wx = item.x + Math.sin(item.wiggle) * 12;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = '#84cc16';
+                        ctx.fillStyle = '#65a30d';
+
+                        for (let s = 0; s < 5; s++) {
+                            ctx.beginPath();
+                            ctx.arc(wx, item.y - (s * 10), 11 - (s * 1.2), 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.beginPath();
+                        ctx.arc(wx - 4, item.y + 3, 3, 0, Math.PI * 2);
+                        ctx.arc(wx + 4, item.y + 3, 3, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#000000';
+                        ctx.beginPath();
+                        ctx.arc(wx - 4, item.y + 4, 1.5, 0, Math.PI * 2);
+                        ctx.arc(wx + 4, item.y + 4, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+
+                    // COLISIÓN CON LA HOJA PRINCIPAL
+                    let distToLeaf = Math.hypot(item.x - leafPos.x, item.y - (leafPos.y - 30));
+                    if (distToLeaf < item.radius + 28) {
+                        if (item.type === 'light') {
+                            hasLight = true;
+                            score += 1;
+                            scoreVal.textContent = score;
+                            playSound(620, 'sine', 0.1);
+                        } else if (item.type === 'oxygen') {
+                            hasOxygen = true;
+                            score += 1;
+                            scoreVal.textContent = score;
+                            playSound(780, 'sine', 0.1);
+                        } else if (item.type === 'worm') {
+                            lives--;
+                            updateLivesUI();
+                            playSound(140, 'sawtooth', 0.3);
+
+                            if (lives <= 0) {
+                                gameOver();
+                                return;
+                            }
+                        }
+                        fallingItems.splice(i, 1);
+                        continue;
+                    }
+
+                    if (item.y > soilY + 20) {
+                        fallingItems.splice(i, 1);
+                    }
+                }
+
+                // EFECTOS VISUALES
+                for (let i = effects.length - 1; i >= 0; i--) {
+                    let ef = effects[i];
+                    if (ef.type === 'text') {
+                        ef.y -= 1.3;
+                        ef.alpha -= 0.016;
+
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, ef.alpha);
+                        ctx.fillStyle = '#86efac';
+                        ctx.shadowBlur = 14;
+                        ctx.shadowColor = '#16a34a';
+                        ctx.font = '900 1.25rem system-ui';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(ef.text, ef.x, ef.y);
+                        ctx.restore();
+                    } else if (ef.type === 'particle') {
+                        ef.x += ef.vx;
+                        ef.y += ef.vy;
+                        ef.alpha -= 0.025;
+
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, ef.alpha);
+                        ctx.fillStyle = ef.color;
+                        ctx.beginPath();
+                        ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
+                    if (ef.alpha <= 0) effects.splice(i, 1);
+                }
+
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>

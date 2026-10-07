@@ -78,6 +78,43 @@
             text-shadow: 0 1px 4px rgba(0,0,0,0.9);
         }
 
+        /* --- BOTONES DE SELECCIÓN DE DISPOSITIVO --- */
+        .contenedor-dispositivo {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .contenedor-dispositivo.oculto {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .btn-dispositivo {
+            padding: 8px 14px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s ease, background 0.3s ease;
+        }
+
+        .btn-dispositivo:active {
+            transform: scale(0.95);
+        }
+
+        .btn-dispositivo:hover {
+            background: linear-gradient(135deg, #0288d1, #38bdf8);
+        }
+
         /* Botón Activar */
         .btn-activar {
             margin-top: 10px;
@@ -102,6 +139,7 @@
         .btn-activar.oculto {
             opacity: 0;
             pointer-events: none;
+            display: none;
         }
 
         /* Enlaces / Pines en la isla */
@@ -187,7 +225,15 @@
             <div class="header-title">
                 <h1>ISLA DE LOS 5 REINOS</h1>
                 <p>Elige un reino para explorar</p>
-                <button class="btn-activar" id="btn-activar" onclick="mostrarReinos()">ACTIVAR LOS 5 REINOS</button>
+
+                <!-- Botones de selección de dispositivo -->
+                <div id="contenedor-dispositivo" class="contenedor-dispositivo">
+                    <button class="btn-dispositivo" onclick="seleccionarDispositivo('pc')">💻 Ordenador</button>
+                    <button class="btn-dispositivo" onclick="seleccionarDispositivo('movil')">📱 Móvil / Tablet</button>
+                </div>
+
+                <!-- Botón Activar (inicialmente oculto) -->
+                <button class="btn-activar oculto" id="btn-activar" onclick="mostrarReinos()">ACTIVAR LOS 5 REINOS</button>
             </div>
 
             <a href="animales.html" class="pin" id="pin-animalia">
@@ -222,6 +268,45 @@
     <audio id="musica-fondo" src="musica.mp3" loop></audio>
 
     <script>
+        var modoDispositivo = '';
+
+        function seleccionarDispositivo(tipo) {
+            modoDispositivo = tipo;
+            // Guardamos la elección en localStorage para disponer de ella en próximos pasos
+            localStorage.setItem('dispositivoJuego', tipo);
+
+            // Actualización de los enlaces de los 5 reinos según la opción seleccionada
+            if (tipo === 'pc') {
+                document.getElementById('pin-animalia').href = 'animalespc.html';
+                document.getElementById('pin-plantae').href = 'plantaspc.html';
+                document.getElementById('pin-fungi').href = 'hongospc.html';
+                document.getElementById('pin-protista').href = 'protoctistaspc.html';
+                document.getElementById('pin-monera').href = 'moneraspc.html';
+            } else {
+                document.getElementById('pin-animalia').href = 'animales.html';
+                document.getElementById('pin-plantae').href = 'plantas.html';
+                document.getElementById('pin-fungi').href = 'hongos.html';
+                document.getElementById('pin-protista').href = 'protoctistas.html';
+                document.getElementById('pin-monera').href = 'moneras.html';
+            }
+
+            var contenedor = document.getElementById('contenedor-dispositivo');
+            var btnActivar = document.getElementById('btn-activar');
+
+            if (contenedor) {
+                contenedor.classList.add('oculto');
+                setTimeout(function() {
+                    contenedor.style.display = 'none';
+                    if (btnActivar) {
+                        btnActivar.style.display = 'inline-block';
+                        setTimeout(function() {
+                            btnActivar.classList.remove('oculto');
+                        }, 50);
+                    }
+                }, 500);
+            }
+        }
+
         function mostrarReinos() {
             // Reproducir música de fondo
             var musica = document.getElementById('musica-fondo');
